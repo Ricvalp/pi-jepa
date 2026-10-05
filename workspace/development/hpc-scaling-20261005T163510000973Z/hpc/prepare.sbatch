@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 #SBATCH --job-name=pi-jepa-data
-#SBATCH --partition=SET_CPU_PARTITION
+#SBATCH --partition=gpuq
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
+#SBATCH --gres=gpu:1
 #SBATCH --cpus-per-task=8
 #SBATCH --mem=16G
 #SBATCH --time=01:00:00
@@ -15,6 +16,7 @@ export DATA_ROOT="${DATA_ROOT:-/hpc/home/phi/rvalperga/data}"
 export PYTHONUNBUFFERED=1
 export OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1
 
+# Peano has no CPU partition; generation uses CPUs on this GPU allocation.
 exec srun uv run --frozen --no-sync python -m pi_jepa.data \
   --config "${CONFIG:-configs/base.json}" --data-root "$DATA_ROOT" \
   --dataset "${DATASET:-both}" --workers "${SLURM_CPUS_PER_TASK:-4}"

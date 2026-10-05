@@ -69,11 +69,12 @@ export WANDB_PROJECT=physics-jepa-cartpole
 export WANDB_MODE=online
 ```
 
-Generate both datasets **once**, using the existing CPU launcher. Replace
-`YOUR_CPU_PARTITION` with Peano's actual CPU partition:
+Generate both datasets **once**, using the existing preparation launcher.
+Peano has no CPU queue, so preparation requests a GPU node through `gpuq`.
+The processing uses that node's CPUs; the allocated GPU is not used:
 
 ```bash
-DATASET=both CONFIG=configs/base.json sbatch --partition=YOUR_CPU_PARTITION hpc/prepare.sbatch
+DATASET=both CONFIG=configs/base.json sbatch --partition=gpuq --gres=gpu:1 hpc/prepare.sbatch
 ```
 
 Each corpus directory must either be absent for fresh generation, or contain a
@@ -83,10 +84,11 @@ pre-create empty `passive/` or `controlled/` directories or start duplicate
 generation jobs. Existing complete production data need no regeneration.
 
 **Wait for dataset preparation to finish successfully**, then prepare both
-caches once in a CPU allocation before submitting the six GPU jobs:
+caches once on another allocated GPU node before submitting the six training jobs.
+Cache preparation also computes on the CPUs:
 
 ```bash
-srun --partition=YOUR_CPU_PARTITION --nodes=1 --ntasks=1 \
+srun --partition=gpuq --gres=gpu:1 --nodes=1 --ntasks=1 \
   --cpus-per-task=8 --mem=32G --time=02:00:00 \
   uv run --frozen --no-sync python scripts/prepare_training_cache.py \
   --data-root "$DATA_ROOT" --cache-root "$CACHE_ROOT" --dataset both \
@@ -115,8 +117,8 @@ Each job then copies only its selected corpus into a job-specific local cache
 before benchmarking. This trades startup I/O and local disk space for local
 reads. Six concurrent copies can pressure shared storage; leave staging off
 when the shared filesystem already serves the workload well. Raw data remain
-at `DATA_ROOT` for provenance and diagnostics. Cache preparation belongs on the
-CPU allocation and is never repeated by these GPU launchers.
+at `DATA_ROOT` for provenance and diagnostics. Cache preparation runs once in its
+separate allocation and is never repeated by these training launchers.
 
 ## Submit the six independent jobs
 
@@ -196,6 +198,6 @@ previous writer has stopped.
 
 The existing `train.sbatch`, `true_reset_diagnostic.sbatch`, `prepare.sbatch`,
 `smoke.sbatch` and `evaluate.sbatch` remain available for their individual stages.
-The CPU partition is site-specific; do not submit `prepare.sbatch` without an
-appropriate `--partition`. Tests and shell parsing are not evidence of an actual
+The preparation launcher uses `gpuq` with one GPU requested, as required on
+Peano. Tests and shell parsing are not evidence of an actual
 H200 allocation. No scheduler submission or full training is performed here.

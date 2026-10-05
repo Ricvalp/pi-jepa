@@ -230,8 +230,10 @@ and readout remain fixed. Each job requests one GPU and requires an H200 with at
 least 130 GiB of reported memory before benchmarking the configured batch. No jobs have been
 submitted and no H200 throughput or batch-fit claim is made without that check.
 
-Prepare the derived learning and fixed-target caches once on a CPU allocation;
-the training jobs consume them and optionally stage one corpus to node-local
+Prepare the derived learning and fixed-target caches once on an allocated GPU
+node (`gpuq`, one GPU requested). Peano has no CPU queue; preparation computes
+on the node's CPUs without using its GPU. The training jobs consume the caches
+and optionally stage one corpus to node-local
 storage. Peano launchers default to data at `/hpc/home/phi/rvalperga/data` and
 the six training launchers use cache root
 `/hpc/home/phi/rvalperga/pi-jepa-training-cache`; exported `DATA_ROOT` and
