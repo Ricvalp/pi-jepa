@@ -1,0 +1,103 @@
+{
+  "torch_threads": 2,
+  "device": "cpu",
+  "protocol": "16 deterministic real training episodes per corpus; local derived copies, warm OS file cache, unchanged actual RGB/forces/theta/reset values; medians of three repetitions unless specified",
+  "datasets": {
+    "passive": {
+      "original_training_indices": [
+        847,
+        507,
+        369,
+        477,
+        1026,
+        279,
+        275,
+        1261,
+        749,
+        74,
+        863,
+        1015,
+        1298,
+        222,
+        531,
+        1394
+      ],
+      "learning_cache_prepare_s": 0.14557407051324844,
+      "target_cache_prepare_s": 0.18775897845625877,
+      "uncompressed_learning_bytes": 177419264,
+      "fixed_target_bytes": 205704,
+      "batches": {
+        "8": {
+          "npz_load_and_crop_s": 0.06513616256415844,
+          "mmap_load_and_crop_s": 0.0020283330231904984,
+          "load_speedup": 32.11314997065989,
+          "float64_solver_s": 0.16286408342421055,
+          "fixed_target_lookup_s": 1.607649028301239e-05,
+          "target_speedup": 10130.574556830032,
+          "target_bitwise_equal": true,
+          "target_max_abs_difference": 0.0,
+          "max_raw_endpoint": 352
+        },
+        "16": {
+          "npz_load_and_crop_s": 0.12583020702004433,
+          "mmap_load_and_crop_s": 0.003997208550572395,
+          "load_speedup": 31.479520127121113,
+          "float64_solver_s": 0.16355272196233273,
+          "fixed_target_lookup_s": 1.5888363122940063e-05,
+          "target_speedup": 10293.86858147714,
+          "target_bitwise_equal": true,
+          "target_max_abs_difference": 0.0,
+          "max_raw_endpoint": 352
+        }
+      }
+    },
+    "controlled": {
+      "original_training_indices": [
+        847,
+        507,
+        369,
+        477,
+        1026,
+        279,
+        275,
+        1261,
+        749,
+        74,
+        863,
+        1015,
+        1298,
+        222,
+        531,
+        1394
+      ],
+      "learning_cache_prepare_s": 0.1466088369488716,
+      "target_cache_prepare_s": 0.1954334545880556,
+      "uncompressed_learning_bytes": 175458148,
+      "fixed_target_bytes": 203432,
+      "batches": {
+        "8": {
+          "npz_load_and_crop_s": 0.051986826583743095,
+          "mmap_load_and_crop_s": 0.00239548459649086,
+          "load_speedup": 21.70200829506417,
+          "float64_solver_s": 0.15770433843135834,
+          "fixed_target_lookup_s": 1.5545636415481567e-05,
+          "target_speedup": 10144.604840642223,
+          "target_bitwise_equal": true,
+          "target_max_abs_difference": 0.0,
+          "max_raw_endpoint": 352
+        },
+        "16": {
+          "npz_load_and_crop_s": 0.10750484839081764,
+          "mmap_load_and_crop_s": 0.004966504871845245,
+          "load_speedup": 21.64597663041766,
+          "float64_solver_s": 0.1608072016388178,
+          "fixed_target_lookup_s": 1.580268144607544e-05,
+          "target_speedup": 10175.94401225837,
+          "target_bitwise_equal": true,
+          "target_max_abs_difference": 0.0,
+          "max_raw_endpoint": 352
+        }
+      }
+    }
+  }
+}

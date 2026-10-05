@@ -1,0 +1,10 @@
+[project]
+name = "pi-jepa-dataset-videos"
+version = "0.1.0"
+description = "Isolated offline visualization of recorded cart-pole trajectories"
+requires-python = ">=3.11.15,<3.12"
+dependencies = [
+    "numpy==2.4.6",
+    "pillow==12.3.0",
+    "imageio-ffmpeg==0.6.0",
+]

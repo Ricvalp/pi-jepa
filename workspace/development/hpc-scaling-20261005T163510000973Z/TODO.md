@@ -1,0 +1,3 @@
+- Visualize the two new datasets.
+- Check the ChatGPT conversation about novelty and manipulation tasks.
+- Run training with the passive dataset.

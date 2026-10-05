@@ -1,0 +1,388 @@
+{
+  "identity": {
+    "cache_version": 1,
+    "dataset": "controlled",
+    "manifest_sha256": "f3bfb3f865ffeb53032859677c3754b691876e89219de4c598ec46ff023e5473",
+    "learning_sources": {
+      "train": [
+        {
+          "path": "train/trajectory_000847.npz",
+          "sha256": "fd33a04c7f4eefbb956c90c1eaebb5868a2140e9e376561c1b82d57d7a49e303"
+        },
+        {
+          "path": "train/trajectory_000507.npz",
+          "sha256": "05456a68a8866fc9140b17f69fec982808843d2c1e31acdaab478097f6b71a2b"
+        },
+        {
+          "path": "train/trajectory_000369.npz",
+          "sha256": "9ad550f46cdf2545dcaac2ff60e4868baf37fc6294bd49e77b09d0c742e48ed9"
+        },
+        {
+          "path": "train/trajectory_000477.npz",
+          "sha256": "204a937db87d5536bb7764f05f5d502296b69bf8595e5804c582b5cceeb27e52"
+        },
+        {
+          "path": "train/trajectory_001026.npz",
+          "sha256": "bdae222811b812bfe7c644e8605a8ab1cf21f23827717bc6cde80823c462dd47"
+        },
+        {
+          "path": "train/trajectory_000279.npz",
+          "sha256": "1bd277594e60d63f9279e7f59a1d32b1ac0bdf5f4ba6941d25745f3303eaf570"
+        },
+        {
+          "path": "train/trajectory_000275.npz",
+          "sha256": "18488790767ba7ad6a347abe34406d2150e847b185b0335e9b9981e0f0839cf5"
+        },
+        {
+          "path": "train/trajectory_001261.npz",
+          "sha256": "aaefd70398a1a331817cee9851066dd801ba87cac06ea0f387a6b5aa75399943"
+        },
+        {
+          "path": "train/trajectory_000749.npz",
+          "sha256": "cb3e8db244223604b8d85a10a1607be0f22fa8dad41584cc43cae70b9cdef49a"
+        },
+        {
+          "path": "train/trajectory_000074.npz",
+          "sha256": "2a5a60582353725dc36b2b161f56c43f6f7c0b824bbc2ce22d272161e2d5dec6"
+        },
+        {
+          "path": "train/trajectory_000863.npz",
+          "sha256": "00017ddf3f01ab3a6fb5bcf014c95d954ebed8000d4934cf6b3c150a50922d8c"
+        },
+        {
+          "path": "train/trajectory_001015.npz",
+          "sha256": "bad15aae0fa454f6a2edc013930e7eec82b2d6331d0c7fd73c399ad6f067bccc"
+        },
+        {
+          "path": "train/trajectory_001298.npz",
+          "sha256": "1d7fa49d648c3758d4d934c1740cae30a5eca2a32177af56c03080149e31c7dc"
+        },
+        {
+          "path": "train/trajectory_000222.npz",
+          "sha256": "425e213d7a84e1c8e9340d0d28c256abe0ae8bec104cd7ccababd7a40eaa3ac9"
+        },
+        {
+          "path": "train/trajectory_000531.npz",
+          "sha256": "93919020619f4d7c6a44d36dd043edc056dc2f7b7494061fb43b8ab365c34ba3"
+        },
+        {
+          "path": "train/trajectory_001394.npz",
+          "sha256": "95206dfd7cc2c2b91c563626aec0ddf296903bdacc320c1c892959c15b1153f4"
+        }
+      ]
+    }
+  },
+  "created_utc": "2026-10-05T16:47:25.584527+00:00",
+  "kind": "learning_npy",
+  "splits": [
+    "train"
+  ],
+  "episodes": {
+    "train": [
+      {
+        "source": "train/trajectory_000847.npz",
+        "files": {
+          "frames": "train/000000_rgb.npy",
+          "forces": "train/000000_force.npy",
+          "theta": "train/000000_theta.npy"
+        },
+        "frame_shape": [
+          401,
+          96,
+          96,
+          3
+        ],
+        "sizes": {
+          "frames": 11086976,
+          "forces": 1728,
+          "theta": 136
+        }
+      },
+      {
+        "source": "train/trajectory_000507.npz",
+        "files": {
+          "frames": "train/000001_rgb.npy",
+          "forces": "train/000001_force.npy",
+          "theta": "train/000001_theta.npy"
+        },
+        "frame_shape": [
+          401,
+          96,
+          96,
+          3
+        ],
+        "sizes": {
+          "frames": 11086976,
+          "forces": 1728,
+          "theta": 136
+        }
+      },
+      {
+        "source": "train/trajectory_000369.npz",
+        "files": {
+          "frames": "train/000002_rgb.npy",
+          "forces": "train/000002_force.npy",
+          "theta": "train/000002_theta.npy"
+        },
+        "frame_shape": [
+          401,
+          96,
+          96,
+          3
+        ],
+        "sizes": {
+          "frames": 11086976,
+          "forces": 1728,
+          "theta": 136
+        }
+      },
+      {
+        "source": "train/trajectory_000477.npz",
+        "files": {
+          "frames": "train/000003_rgb.npy",
+          "forces": "train/000003_force.npy",
+          "theta": "train/000003_theta.npy"
+        },
+        "frame_shape": [
+          401,
+          96,
+          96,
+          3
+        ],
+        "sizes": {
+          "frames": 11086976,
+          "forces": 1728,
+          "theta": 136
+        }
+      },
+      {
+        "source": "train/trajectory_001026.npz",
+        "files": {
+          "frames": "train/000004_rgb.npy",
+          "forces": "train/000004_force.npy",
+          "theta": "train/000004_theta.npy"
+        },
+        "frame_shape": [
+          401,
+          96,
+          96,
+          3
+        ],
+        "sizes": {
+          "frames": 11086976,
+          "forces": 1728,
+          "theta": 136
+        }
+      },
+      {
+        "source": "train/trajectory_000279.npz",
+        "files": {
+          "frames": "train/000005_rgb.npy",
+          "forces": "train/000005_force.npy",
+          "theta": "train/000005_theta.npy"
+        },
+        "frame_shape": [
+          401,
+          96,
+          96,
+          3
+        ],
+        "sizes": {
+          "frames": 11086976,
+          "forces": 1728,
+          "theta": 136
+        }
+      },
+      {
+        "source": "train/trajectory_000275.npz",
+        "files": {
+          "frames": "train/000006_rgb.npy",
+          "forces": "train/000006_force.npy",
+          "theta": "train/000006_theta.npy"
+        },
+        "frame_shape": [
+          401,
+          96,
+          96,
+          3
+        ],
+        "sizes": {
+          "frames": 11086976,
+          "forces": 1728,
+          "theta": 136
+        }
+      },
+      {
+        "source": "train/trajectory_001261.npz",
+        "files": {
+          "frames": "train/000007_rgb.npy",
+          "forces": "train/000007_force.npy",
+          "theta": "train/000007_theta.npy"
+        },
+        "frame_shape": [
+          401,
+          96,
+          96,
+          3
+        ],
+        "sizes": {
+          "frames": 11086976,
+          "forces": 1728,
+          "theta": 136
+        }
+      },
+      {
+        "source": "train/trajectory_000749.npz",
+        "files": {
+          "frames": "train/000008_rgb.npy",
+          "forces": "train/000008_force.npy",
+          "theta": "train/000008_theta.npy"
+        },
+        "frame_shape": [
+          330,
+          96,
+          96,
+          3
+        ],
+        "sizes": {
+          "frames": 9123968,
+          "forces": 1444,
+          "theta": 136
+        }
+      },
+      {
+        "source": "train/trajectory_000074.npz",
+        "files": {
+          "frames": "train/000009_rgb.npy",
+          "forces": "train/000009_force.npy",
+          "theta": "train/000009_theta.npy"
+        },
+        "frame_shape": [
+          401,
+          96,
+          96,
+          3
+        ],
+        "sizes": {
+          "frames": 11086976,
+          "forces": 1728,
+          "theta": 136
+        }
+      },
+      {
+        "source": "train/trajectory_000863.npz",
+        "files": {
+          "frames": "train/000010_rgb.npy",
+          "forces": "train/000010_force.npy",
+          "theta": "train/000010_theta.npy"
+        },
+        "frame_shape": [
+          401,
+          96,
+          96,
+          3
+        ],
+        "sizes": {
+          "frames": 11086976,
+          "forces": 1728,
+          "theta": 136
+        }
+      },
+      {
+        "source": "train/trajectory_001015.npz",
+        "files": {
+          "frames": "train/000011_rgb.npy",
+          "forces": "train/000011_force.npy",
+          "theta": "train/000011_theta.npy"
+        },
+        "frame_shape": [
+          401,
+          96,
+          96,
+          3
+        ],
+        "sizes": {
+          "frames": 11086976,
+          "forces": 1728,
+          "theta": 136
+        }
+      },
+      {
+        "source": "train/trajectory_001298.npz",
+        "files": {
+          "frames": "train/000012_rgb.npy",
+          "forces": "train/000012_force.npy",
+          "theta": "train/000012_theta.npy"
+        },
+        "frame_shape": [
+          401,
+          96,
+          96,
+          3
+        ],
+        "sizes": {
+          "frames": 11086976,
+          "forces": 1728,
+          "theta": 136
+        }
+      },
+      {
+        "source": "train/trajectory_000222.npz",
+        "files": {
+          "frames": "train/000013_rgb.npy",
+          "forces": "train/000013_force.npy",
+          "theta": "train/000013_theta.npy"
+        },
+        "frame_shape": [
+          401,
+          96,
+          96,
+          3
+        ],
+        "sizes": {
+          "frames": 11086976,
+          "forces": 1728,
+          "theta": 136
+        }
+      },
+      {
+        "source": "train/trajectory_000531.npz",
+        "files": {
+          "frames": "train/000014_rgb.npy",
+          "forces": "train/000014_force.npy",
+          "theta": "train/000014_theta.npy"
+        },
+        "frame_shape": [
+          401,
+          96,
+          96,
+          3
+        ],
+        "sizes": {
+          "frames": 11086976,
+          "forces": 1728,
+          "theta": 136
+        }
+      },
+      {
+        "source": "train/trajectory_001394.npz",
+        "files": {
+          "frames": "train/000015_rgb.npy",
+          "forces": "train/000015_force.npy",
+          "theta": "train/000015_theta.npy"
+        },
+        "frame_shape": [
+          401,
+          96,
+          96,
+          3
+        ],
+        "sizes": {
+          "frames": 11086976,
+          "forces": 1728,
+          "theta": 136
+        }
+      }
+    ]
+  }
+}

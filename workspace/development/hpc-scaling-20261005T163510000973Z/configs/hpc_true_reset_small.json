@@ -1,0 +1,158 @@
+{
+  "seed": 42,
+  "physics": {
+    "m": 0.2,
+    "ell": 0.85,
+    "g": 9.81,
+    "dt": 0.01,
+    "substeps": 5,
+    "force_limit": 5.0,
+    "integration_dt": 0.002,
+    "action_dt": 0.02
+  },
+  "data": {
+    "train_apparatuses": 64,
+    "train_trajectories": 24,
+    "val_apparatuses": 8,
+    "val_trajectories": 12,
+    "calibration_seconds": 3.0,
+    "query_seconds": 4.0,
+    "query_trajectories": 8,
+    "test_pairs": [
+      [
+        0.78,
+        0.1
+      ],
+      [
+        0.88,
+        0.36
+      ],
+      [
+        0.97,
+        0.22
+      ],
+      [
+        1.08,
+        0.43
+      ],
+      [
+        1.18,
+        0.16
+      ],
+      [
+        1.26,
+        0.31
+      ],
+      [
+        0.5,
+        0.02
+      ],
+      [
+        1.6,
+        0.8
+      ],
+      [
+        0.5,
+        0.275
+      ],
+      [
+        1.6,
+        0.275
+      ],
+      [
+        1.0,
+        0.02
+      ],
+      [
+        1.0,
+        0.8
+      ]
+    ],
+    "test_groups": [
+      "interior",
+      "interior",
+      "interior",
+      "interior",
+      "interior",
+      "interior",
+      "extrapolation",
+      "extrapolation",
+      "extrapolation",
+      "extrapolation",
+      "extrapolation",
+      "extrapolation"
+    ],
+    "episode_seconds": 4.0,
+    "min_observations": 65,
+    "history_dt": 0.02,
+    "latent_dt": 0.1,
+    "passive_train_episodes": 1536,
+    "passive_validation_episodes": 96,
+    "passive_test_episodes": 96,
+    "waveform_library_size": 32,
+    "appearance_randomization": false,
+    "generation_workers": 4,
+    "cart_limit_m": 1.5,
+    "camera": {
+      "width": 96,
+      "height": 96,
+      "supersampling": 2,
+      "x_limits_m": [
+        -2.6,
+        2.6
+      ],
+      "y_limits_m": [
+        -2.6,
+        2.6
+      ],
+      "isotropic": true
+    }
+  },
+  "training": {
+    "batch_size": 256,
+    "jepa_updates": 10000,
+    "physical_updates": 10000,
+    "lr": 0.0003,
+    "min_lr": 3e-05,
+    "initial_lr": 0.01,
+    "weight_decay": 0.05,
+    "warmup": 500,
+    "grad_clip": 1.0,
+    "lambda_phys": 1.0,
+    "lambda_sigreg": 0.1,
+    "save_every": 1000,
+    "log_every": 50,
+    "val_every": 500,
+    "cpu_threads": 16,
+    "cache_batch_size": 64,
+    "initial_conditions": "true_fixed",
+    "precision": "bf16",
+    "cache_learning": true,
+    "cache_fixed_targets": true,
+    "cudnn_benchmark": true
+  },
+  "adaptation": {
+    "updates": 400,
+    "lr": 0.03
+  },
+  "paths": {
+    "data": "workspace/data",
+    "runs": "workspace/runs",
+    "results": "workspace/evaluations",
+    "cache": "workspace/cache/training"
+  },
+  "wandb": {
+    "enabled": true,
+    "project": "physics-jepa-cartpole",
+    "entity": null,
+    "group": "hpc-true-reset-scaling",
+    "mode": "online",
+    "log_every": 50,
+    "diagnostics_every": 500,
+    "media_every": 1000
+  },
+  "dataset": "passive",
+  "model": {
+    "size": "small"
+  }
+}

@@ -1,0 +1,86 @@
+# Python environments (including the separate video-tool environment).
+.venv/
+venv/
+env/
+ENV/
+
+# Python, test, notebook, and tool caches.
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.ipynb_checkpoints/
+.cache/
+.uv-cache/
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+
+# Generated package/build metadata. Keep pyproject.toml and uv.lock tracked.
+build/
+dist/
+*.egg-info/
+.eggs/
+
+# Dataset and experiment artifacts, including copies nested in local checkouts.
+# These directories contain generated outputs and archived run/source snapshots.
+# Do not ignore workspace/ wholesale: it can also contain unmerged source work.
+/artifacts/
+**/workspace/data/
+**/workspace/runs/
+**/workspace/evaluations/
+**/workspace/cache/
+**/workspace/checks/
+**/workspace/slurm/
+**/workspace/tmp/
+
+# Archived development copies already merged into the main repository.
+# Leave other development checkouts visible until their work has been merged.
+/workspace/development/causal-fixed-reset-20261005T145805270017Z/
+/workspace/development/predicted-physics-logging-20261005T124744290231Z/
+
+# Checkpoints, arrays, and trajectory videos written outside default roots.
+*.pt
+*.pt.tmp
+*.pth
+*.ckpt
+*.safetensors
+*.npz
+*.npy
+*.mp4
+*.webm
+*.avi
+*.mov
+
+# Tracker output, runtime locks, and logs. Do not ignore *.lock (uv.lock is source).
+wandb/
+*.wandb
+diagnostics_media/
+.writer.lock
+*.log
+*.log.*
+slurm-*.out
+slurm-*.err
+/hpc/logs/
+
+# Local credentials; sanitized environment templates remain trackable.
+.env
+.env.*
+!.env.example
+!.env.*.example
+!.env.sample
+!.env.template
+.netrc
+_netrc
+
+# Editor/OS temporary files. Keep shared editor settings and documentation images.
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+._*
+Thumbs.db
+Desktop.ini
