@@ -12,8 +12,8 @@
 
 set -euo pipefail
 cd "${SLURM_SUBMIT_DIR:?Submit from the prepared HPC checkout root.}"
-: "${DATA_ROOT:?Export DATA_ROOT: parent containing both datasets.}"
-: "${CACHE_ROOT:?Export CACHE_ROOT after CPU preparation of the derived caches.}"
+export DATA_ROOT="${DATA_ROOT:-/hpc/home/phi/rvalperga/data}"
+export CACHE_ROOT="${CACHE_ROOT:-/hpc/home/phi/rvalperga/pi-jepa-training-cache}"
 export PYTHONUNBUFFERED=1 MPLBACKEND=Agg
 export OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1
 

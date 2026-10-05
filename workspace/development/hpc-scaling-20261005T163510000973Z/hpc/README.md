@@ -43,7 +43,7 @@ GPU memory, otherwise it exits before training. This distinguishes the decimal
 allocation has not been tested here, so fit and throughput remain allocation
 checks rather than promises.
 
-## Prepare the environment and derived caches once
+## Prepare the environment, datasets and caches once
 
 On the login host, install the locked environment and authenticate separately:
 
@@ -54,23 +54,41 @@ uv run --frozen --no-sync wandb login
 mkdir -p workspace/slurm
 ```
 
-Set shared paths; `DATA_ROOT` contains `passive/` and `controlled/`. Existing
-production datasets are reused, without regeneration:
+On Peano, dataset launchers default to `/hpc/home/phi/rvalperga/data`; the six
+training launchers default to cache root
+`/hpc/home/phi/rvalperga/pi-jepa-training-cache`. Exporting different values
+overrides these defaults. Set them explicitly here so the preparation commands
+use the same paths; these assignments replace earlier values in the current
+shell. `DATA_ROOT` is the parent of `passive/` and `controlled/`:
 
 ```bash
-export DATA_ROOT="/absolute/shared/path/to/data"
-export CACHE_ROOT="/absolute/shared/path/to/pi-jepa-training-cache"
-export RUNS_ROOT="/absolute/shared/path/to/pi-jepa-runs"
+export DATA_ROOT="/hpc/home/phi/rvalperga/data"
+export CACHE_ROOT="/hpc/home/phi/rvalperga/pi-jepa-training-cache"
+export RUNS_ROOT="$PWD/workspace/runs"
 export WANDB_PROJECT=physics-jepa-cartpole
 export WANDB_MODE=online
 ```
 
-Build the caches **once on a CPU allocation before submitting the six GPU jobs**.
-Use your site's CPU allocation command; this command itself does not allocate
-resources. Eight threads must fit that allocation:
+Generate both datasets **once**, using the existing CPU launcher. Replace
+`YOUR_CPU_PARTITION` with Peano's actual CPU partition:
 
 ```bash
-uv run --frozen --no-sync python scripts/prepare_training_cache.py \
+DATASET=both CONFIG=configs/base.json sbatch --partition=YOUR_CPU_PARTITION hpc/prepare.sbatch
+```
+
+Each corpus directory must either be absent for fresh generation, or contain a
+complete matching dataset with its manifest and episode files. Complete matching
+corpora are reused. Incomplete or incompatible outputs are refused; do not
+pre-create empty `passive/` or `controlled/` directories or start duplicate
+generation jobs. Existing complete production data need no regeneration.
+
+**Wait for dataset preparation to finish successfully**, then prepare both
+caches once in a CPU allocation before submitting the six GPU jobs:
+
+```bash
+srun --partition=YOUR_CPU_PARTITION --nodes=1 --ntasks=1 \
+  --cpus-per-task=8 --mem=32G --time=02:00:00 \
+  uv run --frozen --no-sync python scripts/prepare_training_cache.py \
   --data-root "$DATA_ROOT" --cache-root "$CACHE_ROOT" --dataset both \
   --fixed-targets --cpu-threads 8
 ```
@@ -83,6 +101,8 @@ used. Immutable source data are not changed. Complete compatible caches are
 reused; training refuses missing, incomplete or mismatched caches rather than
 building them inside a GPU job. Allow substantial disk space: uncompressed RGB
 is approximately 18 GB per corpus, depending on split sizes and truncation.
+Reserve about **40 GiB for both caches**, separately from the source datasets
+and training outputs.
 
 Shared caches are used directly by default. If the site provides sufficiently
 large node-local storage through `SLURM_TMPDIR`, enable staging explicitly:

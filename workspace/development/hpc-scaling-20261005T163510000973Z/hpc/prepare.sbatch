@@ -11,7 +11,7 @@
 
 set -euo pipefail
 cd "${SLURM_SUBMIT_DIR:?Submit from the repository root.}"
-: "${DATA_ROOT:?Export DATA_ROOT before submission.}"
+export DATA_ROOT="${DATA_ROOT:-/hpc/home/phi/rvalperga/data}"
 export PYTHONUNBUFFERED=1
 export OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1
 

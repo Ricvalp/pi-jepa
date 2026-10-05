@@ -232,7 +232,10 @@ submitted and no H200 throughput or batch-fit claim is made without that check.
 
 Prepare the derived learning and fixed-target caches once on a CPU allocation;
 the training jobs consume them and optionally stage one corpus to node-local
-storage. [HPC instructions](hpc/README.md) contain the exact commands and model
+storage. Peano launchers default to data at `/hpc/home/phi/rvalperga/data` and
+the six training launchers use cache root
+`/hpc/home/phi/rvalperga/pi-jepa-training-cache`; exported `DATA_ROOT` and
+`CACHE_ROOT` override these paths. [HPC instructions](hpc/README.md) contain the exact commands and model
 sizes, and [performance notes](docs/hpc_performance.md) explain the optimization
 and measurements. The common learning rate is unchanged. Batch 256 exposes the
 models to four times as many window draws as the older batch-64 protocol over
