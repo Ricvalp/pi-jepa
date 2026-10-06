@@ -45,14 +45,26 @@ checks rather than promises.
 
 ## Prepare the environment, datasets and caches once
 
-On the login host, install the locked environment and authenticate separately:
+On the login host, install the locked environment in the actual HPC checkout
+and verify that its interpreter can import the project. These commands also
+recover from `ModuleNotFoundError: No module named 'pi_jepa'` during preparation:
 
 ```bash
+cd /hpc/home/phi/rvalperga/pi-jepa
+export UV_PROJECT_ENVIRONMENT=.venv
 uv sync --locked --extra tracking
-uv run --frozen --no-sync python scripts/check_environment.py --device cpu
-uv run --frozen --no-sync wandb login
+.venv/bin/python -c 'import pi_jepa.data; print(pi_jepa.data.__file__)'
+.venv/bin/python scripts/check_environment.py --device cpu
+.venv/bin/wandb login
 mkdir -p workspace/slurm
 ```
+
+`uv run --no-sync` does not install the project or its dependencies. If the
+failed job created a fresh `.venv`, the `uv sync` above populates that environment.
+The reported import failure happened before dataset generation, so that attempt
+produced no dataset files. Once the import check succeeds, resubmit preparation
+with the `sbatch` command below. The preparation launcher checks and uses this
+same `.venv/bin/python` without installing packages inside the job.
 
 On Peano, dataset launchers default to `/hpc/home/phi/rvalperga/data`; the six
 training launchers default to cache root
