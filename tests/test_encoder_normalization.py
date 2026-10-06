@@ -5,8 +5,7 @@ import pytest
 import torch
 from torch import nn
 
-from pi_jepa.checkpoint_interface import (CHECKPOINT_FORMAT_VERSION, ENCODER_ARCHITECTURE,
-                                         encoder_interface, geometry_interface,
+from pi_jepa.checkpoint_interface import (CHECKPOINT_FORMAT_VERSION, model_interface, geometry_interface,
                                          validate_checkpoint_interface)
 from pi_jepa.data import causal_clips
 from pi_jepa.models import Encoder, encode_temporal
@@ -95,14 +94,15 @@ def test_final_latent_output_is_not_normalized(encoder):
 
 def current_interface():
     return {"format_version": CHECKPOINT_FORMAT_VERSION, **geometry_interface(),
-            **encoder_interface(), "architecture": {"encoder": ENCODER_ARCHITECTURE}}
+            **model_interface({"model": {"size": "small"}, "dataset": "passive"}, "joint")}
 
 
 @torch.no_grad()
 def test_checkpoint_roundtrip_preserves_batch_independent_inference(encoder, tmp_path):
     clips = torch.randn(1, 2, 24, 96, 96)
     expected = encode_temporal(encoder.eval(), clips)
-    checkpoint = {"interface": current_interface(), "encoder": encoder.state_dict()}
+    checkpoint = {"interface": current_interface(), "encoder": encoder.state_dict(),
+                  "config": {"model": {"size": "small"}, "dataset": "passive"}, "mode": "joint"}
     path = tmp_path / "groupnorm.pt"
     torch.save(checkpoint, path)
     saved = torch.load(path, weights_only=True)
@@ -113,12 +113,13 @@ def test_checkpoint_roundtrip_preserves_batch_independent_inference(encoder, tmp
 
 
 @pytest.mark.parametrize("mutation, message", [
-    ({"format_version": 4}, "version 5.*BatchNorm checkpoints"),
-    ({"architecture": {"encoder": "resnet18_24channel_32latent"}}, "encoder architecture"),
+    ({"format_version": 5}, "version 6.*older checkpoints"),
+    ({"architecture": {"encoder": "resnet18_24channel_32latent"}}, "architecture differs"),
     ({"encoder_normalization": {"backbone": "batch_norm"}}, "encoder_normalization"),
 ])
 def test_checkpoint_rejects_previous_or_mislabelled_encoder(mutation, message):
     interface = copy.deepcopy(current_interface())
     interface.update(mutation)
     with pytest.raises(ValueError, match=message):
-        validate_checkpoint_interface({"interface": interface})
+        validate_checkpoint_interface({"interface": interface, "mode": "joint",
+                                       "config": {"model": {"size": "small"}, "dataset": "passive"}})

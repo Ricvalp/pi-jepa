@@ -8,8 +8,7 @@ import torch
 
 from pi_jepa import evaluate, evaluate_latents
 from pi_jepa.data import generate, CAMERA, CART_LIMIT, SCHEMA_VERSION, validate_clocks
-from pi_jepa.checkpoint_interface import (CHECKPOINT_FORMAT_VERSION, ENCODER_ARCHITECTURE,
-                                         encoder_interface, geometry_interface)
+from pi_jepa.checkpoint_interface import CHECKPOINT_FORMAT_VERSION, model_interface, geometry_interface
 from pi_jepa.runs import file_digest
 
 
@@ -73,7 +72,7 @@ def evaluation_inputs(tmp_path, monkeypatch):
         torch.save({"mode": mode, "step": 100, "config": cfg, "encoder": TinyEncoder().state_dict(),
                     "predictor": TinyPredictor().state_dict(), "readout": TinyReadout().state_dict(),
                     "interface": {"format_version": CHECKPOINT_FORMAT_VERSION, **geometry_interface(),
-                                  **encoder_interface(), "architecture": {"encoder": ENCODER_ARCHITECTURE}},
+                                  **model_interface(cfg, mode)},
                     "data_manifest_sha256": file_digest(root / "manifest.json")}, path)
         checkpoints[variant] = path
     monkeypatch.setattr(evaluate_latents, "Encoder", TinyEncoder)
@@ -143,8 +142,8 @@ def test_checkpoint_mutation_during_evaluation_is_detected(evaluation_inputs, mo
 
 
 @pytest.mark.parametrize("mutation, message", [
-    ({"format_version": 4}, "interface version 5"),
-    ({"architecture": {"encoder": "resnet18_24channel_32latent"}}, "encoder architecture differs"),
+    ({"format_version": 5}, "interface version 6"),
+    ({"architecture": {"encoder": "resnet18_24channel_32latent"}}, "architecture differs"),
     ({"encoder_normalization": {}}, "encoder_normalization differs"),
     ({"physics": {"m": .2, "ell": .5, "g": 9.81}}, "Checkpoint physics differs"),
     ({"cart_limit_m": 2.0}, "Checkpoint cart_limit_m differs"),

@@ -108,8 +108,13 @@ def trajectory_phase_figure(encoder, predictor, readout, table, reference, confi
                 forecast = z[:, 2:3]
             observed = to_state(readout(z[:, 2:]))[0].cpu().numpy()
             forecast = to_state(readout(forecast))[0].cpu().numpy()
-            initial = table(torch.tensor([episode], dtype=torch.long, device=device))
-            simulated = rollout(initial, theta, forces)[0, FORECAST_START:].cpu().numpy()
+            episode_ids = torch.tensor([episode], dtype=torch.long, device=device)
+            cache = getattr(table, "target_cache", None)
+            if cache is None:
+                simulated = rollout(table(episode_ids), theta, forces)[0, FORECAST_START:].cpu().numpy()
+            else:
+                dense = torch.arange(FORECAST_START, last + 1)[None]
+                simulated = cache.gather(episode_ids, dense)[0].numpy()
             for states, color, label, markers in zip((simulated, observed, forecast), COLORS,
                                                      labels, (False, True, True)):
                 _phase_curve(ax, states, color, label, markers)

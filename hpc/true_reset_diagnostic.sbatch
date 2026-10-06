@@ -12,7 +12,7 @@
 
 set -euo pipefail
 cd "${SLURM_SUBMIT_DIR:?Submit from the repository root.}"
-: "${DATA_ROOT:?Export DATA_ROOT before submission.}"
+export DATA_ROOT="${DATA_ROOT:-/hpc/home/phi/rvalperga/data/pi-jepa}"
 export PYTHONUNBUFFERED=1 MPLBACKEND=Agg
 export OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1
 
@@ -35,7 +35,7 @@ runs_root="${RUNS_ROOT:-$PWD/workspace/runs}"
 run_name="${dataset}-joint-true-fixed-reset-diagnostic-${SLURM_JOB_ID:?}-$(date -u +%Y%m%dT%H%M%S%NZ)"
 run_dir="${RUN_DIR:-$runs_root/$run_name}"
 if [[ "${RESUME:-0}" == 1 ]]; then
-  : "${RUN_DIR:?Set RUN_DIR to the existing format-5 true-fixed diagnostic run.}"
+  : "${RUN_DIR:?Set RUN_DIR to the existing format-6 true-fixed diagnostic run.}"
   extra_args+=(--resume)
 fi
 printf 'True training-reset diagnostic run: %s\n' "$run_dir"

@@ -70,9 +70,9 @@ def action_blocks(forces):
 
 
 class TrainDataset(Dataset):
-    """Learning files only, bounded uint8 episode cache, no true-state access."""
+    """Learning files only: bounded RAM cache or explicitly prepared RGB mmap cache."""
 
-    def __init__(self, root, split="train", cache_size=8):
+    def __init__(self, root, split="train", cache_size=8, cache_root=None):
         split = "validation" if split == "val" else split
         if split not in ("train", "validation"):
             raise ValueError("TrainDataset only permits train or validation")
@@ -84,6 +84,10 @@ class TrainDataset(Dataset):
         self.reset_modes = torch.tensor([e["reset_mode"] for e in self.entries])
         self.cache_size = max(0, int(cache_size))
         self._cache = OrderedDict()
+        self._mapped_cache = None
+        if cache_root is not None:
+            from pi_jepa.training_cache import LearningCache
+            self._mapped_cache = LearningCache(self.root, split, cache_root)
 
     def __len__(self):
         return len(self.entries)
@@ -94,15 +98,16 @@ class TrainDataset(Dataset):
             self._cache.move_to_end(index)
             return self._cache[index]
         entry = self.entries[index]
-        with np.load(self.root / entry["path"], allow_pickle=False) as data:
-            result = {
-                "frames": torch.from_numpy(data["rgb"]),
-                "forces": torch.from_numpy(data["force"].reshape(-1)).float(),
-                "trajectory_id": index, "reset_mode": entry["reset_mode"],
-                "apparatus_id": entry["apparatus_id"],
-            }
-            if self.dataset == "controlled":
-                result["theta"] = torch.from_numpy(data["theta"]).float()
+        if self._mapped_cache is not None:
+            result = self._mapped_cache[index]
+        else:
+            with np.load(self.root / entry["path"], allow_pickle=False) as data:
+                result = {"frames": torch.from_numpy(data["rgb"]),
+                          "forces": torch.from_numpy(data["force"].reshape(-1)).float()}
+                if self.dataset == "controlled":
+                    result["theta"] = torch.from_numpy(data["theta"]).float()
+        result.update(trajectory_id=index, reset_mode=entry["reset_mode"],
+                      apparatus_id=entry["apparatus_id"])
         if self.cache_size:
             self._cache[index] = result
             if len(self._cache) > self.cache_size:

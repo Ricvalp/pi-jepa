@@ -171,7 +171,7 @@ def test_fixed_joint_training_and_resume_preserve_resets_and_neural_updates(rese
     for field, value, message in [
         ("initial_conditions_metadata", {}, "reset source"),
         ("initial_optimizer", {"unexpected": "optimizer"}, "cannot have an initial-state optimizer"),
-        ("interface", {"format_version": 4}, "interface version 5"),
+        ("interface", {"format_version": 4}, "interface version 6"),
     ]:
         altered = copy.deepcopy(final)
         altered[field] = value

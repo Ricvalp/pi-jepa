@@ -83,7 +83,7 @@ share three images. This overlap is causal but can still make persistence strong
 Independent episodes are sampled uniformly, then one uniformly chosen valid crop
 per episode. SIGReg samples are independent episodes, not nearby overlapping crops.
 
-The encoder keeps the spatial ResNet-18 shape but replaces all 20 backbone
+The default small encoder keeps the spatial ResNet-18 shape but replaces all 20 backbone
 BatchNorm layers with GroupNorm (32 groups). Its projector is
 `Linear(192,256) → LayerNorm(256) → GELU → Linear(256,32)`; there is no final
 normalization of the latent. Each of the six history offsets is encoded in an
@@ -97,10 +97,13 @@ This deliberately supersedes the BatchNorm architecture in the original brief.
 BatchNorm previously mixed all six offsets in the encoder batch and produced a
 large measured train/eval discrepancy at checkpoint 1,000. Removing it addresses
 that confound; it does not by itself prevent an ungrounded physical readout.
-Checkpoint interface **5** records the new architecture and rejects old
-BatchNorm/interface-4 checkpoints. These models must be trained from scratch.
+Checkpoint interface **6** records and validates the full encoder/predictor size
+specification. Earlier interfaces are unsupported in this HPC version; models
+start from fresh initialization. The [H200 campaign](../hpc/README.md) adds
+ResNet-34/ResNet-50 encoders and larger predictors, while keeping latent
+dimension 32, the physical readout, and temporal interfaces fixed.
 
-The controlled predictor retains three width-192, three-head transformer blocks,
+The small controlled predictor retains three width-192, three-head transformer blocks,
 causal attention, at most three latent tokens, and AdaLN-zero conditioning. Each
 token gets all ten subsequent recorded-interval forces `force[e:e+10]`, divided by
 5 N, plus mass/drag normalized using centres `[1,0.275]` and scales `[0.3,0.225]`.

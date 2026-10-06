@@ -219,7 +219,7 @@ def test_passive_joint_trains_physical_readout_reset_and_unconditioned_dynamics(
     for name in ("encoder", "predictor", "readout"):
         assert any(not torch.equal(value, initial[name][key]) for key, value in saved[name].items()), name
     assert saved["initial_conditions"]["raw"].abs().sum() > 0
-    assert saved["interface"]["format_version"] == 5
+    assert saved["interface"]["format_version"] == 6
     assert saved["interface"]["physics"]["ell"] == .85
     assert saved["interface"]["cart_limit_m"] == 1.5
     assert saved["interface"]["simulator_theta"] == [1., .25]

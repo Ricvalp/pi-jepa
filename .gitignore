@@ -24,9 +24,9 @@ dist/
 *.egg-info/
 .eggs/
 
-# Dataset and experiment artifacts, including copies nested in local checkouts.
+# Dataset and experiment artifacts.
 # These directories contain generated outputs and archived run/source snapshots.
-# Do not ignore workspace/ wholesale: it can also contain unmerged source work.
+# Keep any intentional research utilities visible; ignore generated output roots.
 /artifacts/
 **/workspace/data/
 **/workspace/runs/
@@ -35,11 +35,11 @@ dist/
 **/workspace/checks/
 **/workspace/slurm/
 **/workspace/tmp/
+**/workspace/benchmarks/
+**/workspace/transfers/
 
-# Archived development copies already merged into the main repository.
-# Leave other development checkouts visible until their work has been merged.
-/workspace/development/causal-fixed-reset-20261005T145805270017Z/
-/workspace/development/predicted-physics-logging-20261005T124744290231Z/
+# The canonical implementation lives at the repository root.
+/workspace/development/
 
 # Checkpoints, arrays, and trajectory videos written outside default roots.
 *.pt

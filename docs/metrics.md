@@ -47,7 +47,7 @@ learned units. Statistics use population variance/std (`ddof=0`). Episode IDs,
 crop starts, raw endpoints, and selection seeds are saved in
 `diagnostic_windows.json` so these fixed comparisons can be reproduced.
 
-The format-5 encoder uses GroupNorm in the backbone and LayerNorm in the
+The encoder uses GroupNorm in the backbone and LayerNorm in the
 projector's hidden layer, with no normalization on the final latent. Temporal
 offsets are encoded separately. Encoder outputs therefore do not depend on
 other clips through batch statistics, and normalization has the same behavior
@@ -96,6 +96,16 @@ is an input. The passive MLP replaces the controlled causal transformer.
 Monitoring does not fit physical parameters or access stored future states,
 validation truth, or test trajectories. The separate test-evaluation commands do not currently upload
 their results to W&B; there are no application `eval/*` keys here.
+
+HPC size configurations use BF16 autocast for training encoder/predictor
+forwards. The latent values are converted to float32 before JEPA/SIGReg loss
+reductions and before the float32 readout; fixed physical targets and the
+training physics loss retain float64. Fixed train/validation diagnostics and
+trajectory figures run in float32 neural evaluation, using raw float32 weights.
+These losses need not exactly equal a training-mode BF16 forward on the same
+data. A prepared fixed-target cache is equivalent to simulating from the frozen
+training resets with the public parameters and actions, rather than reading
+private future states. It does not change diagnostic horizons or supervision.
 
 ## Losses
 
@@ -386,6 +396,12 @@ optimizer/update diagnostics retain their usual interpretation.
 | `train/lr` | Current scheduled learning rate of the neural AdamW optimizer. Does not report the separate learned-reset Adam learning rate (`training.initial_lr`, default `0.01`); that optimizer is absent in `true_fixed`. |
 | `train/seconds` | Cumulative training-loop wall time in seconds. Includes monitoring/logging overhead already incurred and earlier updates' evaluation/checkpoint work; excludes data loading/caching before the loop. Resume adds the retained CSV elapsed time. |
 | `train/updates_per_second` | Completed updates in the current fresh/resumed segment divided by its elapsed wall time at the logging point. A cumulative segment rate, not an instantaneous batch rate. Higher means faster execution, not better learning. |
+| `train/performance/data_seconds` | Wall seconds for this sampled minibatch's episode selection, learning-window load/stack, optional cached target lookup, and blocking transfer to the training device. Includes mmap page faults or NPZ decompression; excludes neural computation. Logged on monitored updates, not averaged across preceding updates. Lower is faster. |
+| `train/performance/optimization_seconds` | Wall seconds from batch readiness through the forward/loss/backward/optimizer work and this update's scalar/gradient diagnostics and CSV row. CUDA work has completed by the scalar transfers that precede measurement. Excludes subsequent validation, fixed-reference diagnostics, media, W&B upload and checkpoints. Not pure GPU-kernel time; lower is faster. |
+| `train/performance/update_seconds` | Sum of the two durations above, for one monitored update. Seconds; lower is faster. Does not measure a whole iteration that includes later periodic evaluations. |
+| `train/performance/episodes_per_second` | Configured batch size divided by `performance/update_seconds`. Episode-window draws/second, not unique episodes/second; excludes periodic evaluation/upload/checkpoint overhead. Higher is faster, not evidence of learning. Compare end-to-end `train/updates_per_second` as well. |
+| `train/performance/cuda_peak_allocated_gib` | CUDA-only peak live tensor memory allocated since process initialization, including startup and diagnostics; bytes divided by 2³⁰. A cumulative high-water mark, not this batch's exclusive memory. Logged on monitored updates; absent on CPU. |
+| `train/performance/cuda_reserved_gib` | CUDA-only memory currently reserved by the PyTorch allocator, in GiB, on monitored updates. Includes cached allocator blocks; excludes non-PyTorch CUDA allocations. Absent on CPU. Neither memory metric is a task score. |
 | `failure/nonfinite_objective` | `1` only when the training objective is NaN/infinite. A failure checkpoint and JSON reason are saved, then training raises an error. Not emitted on healthy steps; absence is not a comprehensive success indicator. Other exceptions do not automatically produce this key. |
 
 ## Images and histograms
@@ -437,6 +453,13 @@ inactive, untrained readout's CSV variance, which is not evidence of physical
 learning; readout W&B diagnostics remain omitted. Neither CSV column is
 separately uploaded as a W&B metric. `validation.csv` contains validation
 losses. These files remain usable with tracking disabled.
+
+`runtime.json` records the actual device/accelerator, training and master-weight
+precision, readout precision, cuDNN autotuning choice, cache identity, and
+per-network parameter counts. These are run metadata, not stepwise scores;
+counts exclude optimizer state and fixed reset buffers. No credentials are
+stored. Its cache identity binds the targets to the training manifest, reset
+source, learning arrays, and solver implementation.
 
 W&B also adds its own bookkeeping: `_step` is its monotonically increasing log
 record index, `_timestamp` is the record's Unix wall-clock timestamp, and
@@ -533,3 +556,30 @@ fixed reset-family examples with up to 3.2 s of autoregressive prediction. Its
 key and cadence are unchanged. The earlier audit-only gray private-state curve
 is not part of this training logger; its simulator curve uses the actual
 physics-loss reset protocol.
+
+### H200 model-size campaign
+
+Checkpoint format 6 records the small/medium/large encoder and predictor
+specification. HPC jobs use batch 256, BF16 neural forwards, prepared learning
+and fixed-target caches, and larger diagnostic inference chunks. Latent
+dimension 32, physical units, SIGReg projection count, reset supervision, and
+media/metric schedules are unchanged. New `train/performance/*` scalars above
+separate observed data and optimization costs; previous logs lack these keys.
+The larger batch changes the finite-sample SIGReg estimator and increases data
+exposure per update; compare the six new runs with one another under matched
+budgets, not as a pure speed comparison against earlier batch-64 training.
+
+The allocation preflight writes `benchmark.json` locally and never uploads to
+W&B. It reports one warmup and three measured joint updates by default: per-step
+`data_seconds`, `neural_forward_seconds` (encoder, predictor, JEPA/SIGReg and
+readout), `physics_seconds` (target integration if uncached, plus physics loss),
+`backward_optimizer_seconds`, `update_seconds`, `episodes_per_second`, and
+unscaled total `loss`, plus medians of these values. Cached target lookup is in
+`data_seconds`. CUDA is synchronized at stage boundaries. GPU peak allocated
+and reserved GiB include startup/warmup and measured steps; warmup peak allocated
+GiB is also explicit. CPU memory fields are null. Hardware, exact batch, model
+size, precision, parameter counts and dataset digest accompany the result.
+Cache preparation, loading/model startup, diagnostic/media/checkpoint work are
+excluded from update times; no convergence or full-run-duration claim follows
+from this short check. `failure.json` records exception type/message if it
+cannot complete. See [`benchmark_training.py`](../scripts/benchmark_training.py).

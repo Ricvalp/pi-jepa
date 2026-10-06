@@ -111,8 +111,11 @@ def evaluate_diagnostics(encoder, predictor, readout, table, reference, validati
             decoded, simulated = readout(z) if readout is not None else None, None
             if mode != "jepa":
                 if name == "train_eval":
-                    simulated = simulate_window(table(batch["trajectory_id"].long()), batch["theta"],
-                                                batch["prefix_forces"], batch["raw_endpoints"])
+                    cache = getattr(table, "target_cache", None)
+                    simulated = (cache.gather(batch["trajectory_id"], batch["raw_endpoints"], device=device)
+                                 if cache is not None else
+                                 simulate_window(table(batch["trajectory_id"].long()), batch["theta"],
+                                                 batch["prefix_forces"], batch["raw_endpoints"]))
                     # Reuse the exact correct-action autoregressive forecasts
                     # already scored in latent space; no extra predictor pass.
                     predicted = torch.as_tensor(plot_data["correct"], device=device, dtype=z.dtype)

@@ -194,7 +194,7 @@ def test_exported_cropped_supervision_integrates_from_episode_reset(exporter):
 
 @pytest.mark.parametrize("protocol", ["learned", "true_fixed"])
 def test_passive_joint_export_uses_fixed_physics_and_records_render_geometry(exporter, tmp_path, monkeypatch, protocol):
-    from pi_jepa.checkpoint_interface import CHECKPOINT_FORMAT_VERSION, ENCODER_ARCHITECTURE, encoder_interface, geometry_interface
+    from pi_jepa.checkpoint_interface import CHECKPOINT_FORMAT_VERSION, model_interface, geometry_interface
     from pi_jepa.data import CAMERA, CART_LIMIT, SCHEMA_VERSION, validate_clocks
     from pi_jepa.models import PhysicalReadout
     from pi_jepa.runs import file_digest
@@ -235,7 +235,7 @@ def test_passive_joint_export_uses_fixed_physics_and_records_render_geometry(exp
     torch.save({"mode": "joint", "step": 1, "config": cfg, "encoder": {},
                 "readout": PhysicalReadout().state_dict(), "initial_conditions": table.state_dict(),
                 "interface": {"format_version": CHECKPOINT_FORMAT_VERSION, **geometry_interface(),
-                              **encoder_interface(), "architecture": {"encoder": ENCODER_ARCHITECTURE}},
+                              **model_interface(cfg, "joint")},
                 "data_manifest_sha256": file_digest(manifest_path)}, checkpoint)
     settings = {"config": cfg, "manifest_sha256": file_digest(manifest_path), "parameter_condition": "none",
                 "endpoints": exporter.ENDPOINTS.tolist(),

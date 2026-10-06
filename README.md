@@ -7,11 +7,16 @@ Train a physics-informed JEPA on the passive corpus first, then a separate model
 on the controlled corpus. See the [standalone dataset report](docs/new_dataset_report.md),
 [scientific description](docs/experiment.md), and [logged metric reference](docs/metrics.md).
 
-The main implementation uses an encoder without BatchNorm and includes a
+This implementation uses an encoder without BatchNorm and includes a
 separately labeled **true-reset diagnostic**. Run all commands below from this
 repository's root using its `.venv`. The existing datasets can be reused.
 For data or outputs elsewhere, replace `workspace/data` and `workspace/runs`
 in the commands with the corresponding directories.
+
+The **HPC scaling implementation is included in this repository**. The
+[six-job H200 guide](hpc/README.md) gives repository updates, environment setup,
+cache preparation, preflight and submission commands for
+passive/controlled × small/medium/large models.
 
 ## Environment
 
@@ -164,7 +169,7 @@ Definitions and protocol-dependent interpretation are in the
 Controlled post-hoc fitting uses `--mode readout --pretrained PATH_TO_JEPA_RUN/final.pt`.
 Resume explicitly with `--resume --run-dir PATH_TO_RUN` and the original stage,
 configuration and optional pretrained checkpoint. There must be one writer per
-run. Checkpoints use **format 5**. Start fresh, or explicitly resume a compatible
+run. Checkpoints use **format 6**, recording model size. Start fresh, or explicitly resume a compatible
 run with the same architecture and reset protocol. No validation/test metric selects a
 "best" checkpoint. Dataset preparation does not launch full training.
 
@@ -213,6 +218,28 @@ and checkpoint hash. Passive/controlled raw latent errors are not directly
 comparable scores.
 
 ## Repository and HPC
+
+For the requested H200 comparison, use
+`configs/hpc_true_reset_{small,medium,large}.json` and the six explicit
+`hpc/train_{passive,controlled}_{small,medium,large}.sbatch` files. They all train
+joint models with fixed true resets, batch **256**, BF16 encoder/predictor
+execution and 10,000 updates. Encoder and predictor scale together; latent size
+and readout remain fixed. Each job requests one GPU and requires an H200 with at
+least 130 GiB of reported memory before benchmarking the configured batch.
+H200 throughput and batch fit must be checked on the actual allocation.
+
+Prepare the derived learning and fixed-target caches once on an allocated GPU
+node (`gpuq`, one GPU requested). Peano has no CPU queue; preparation computes
+on the node's CPUs without using its GPU. The training jobs consume the caches
+and optionally stage one corpus to node-local storage. Peano launchers default
+to data at `/hpc/home/phi/rvalperga/data/pi-jepa` and cache root `$DATA_ROOT/cache`;
+exported `DATA_ROOT` and `CACHE_ROOT` override these paths. Point them to existing
+data and compatible caches to reuse them; updating the repository does not move
+or regenerate datasets. [HPC instructions](hpc/README.md) contain the exact commands and model
+sizes, and [performance notes](docs/hpc_performance.md) explain the optimization
+and measurements. The common learning rate is unchanged. Batch 256 exposes the
+models to four times as many window draws as the older batch-64 protocol over
+the same number of updates, so this is a matched six-run scaling experiment.
 
 `src/pi_jepa/` holds scientific code, `tests/` focused checks, `configs/` experiment
 settings, `docs/` explanations, and `workspace/` generated outputs. Consult

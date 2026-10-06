@@ -16,7 +16,7 @@ from pathlib import Path
 import numpy as np
 import torch
 
-from pi_jepa.models import Encoder, Predictor, PassivePredictor, encode_temporal
+from pi_jepa.models import Encoder, Predictor, PassivePredictor, encode_temporal, model_kwargs, model_size
 from pi_jepa.data import validate_clocks, validate_manifest
 from pi_jepa.checkpoint_interface import validate_checkpoint_interface
 from pi_jepa.runs import file_digest, run_directory, write_provenance
@@ -46,13 +46,15 @@ def load_networks(checkpoint, device):
     saved = torch.load(checkpoint, map_location="cpu", weights_only=True)
     validate_checkpoint_interface(saved)
     dataset = saved["config"].get("dataset", "controlled")
-    encoder = Encoder().to(device)
-    predictor = (PassivePredictor() if dataset == "passive" else Predictor()).to(device)
+    kwargs = model_kwargs(saved["config"])
+    encoder = Encoder(**kwargs).to(device)
+    predictor = (PassivePredictor(**kwargs) if dataset == "passive" else Predictor(**kwargs)).to(device)
     for name, module in (("encoder", encoder), ("predictor", predictor)):
         module.load_state_dict(saved[name])
         module.eval().requires_grad_(False)
     info = {"path": str(checkpoint), "sha256": file_digest(checkpoint), "step": saved["step"],
-            "mode": saved["mode"], "seed": saved["config"]["seed"], "dataset": dataset, "weights": "raw"}
+            "mode": saved["mode"], "seed": saved["config"]["seed"], "dataset": dataset, "weights": "raw",
+            "model_size": model_size(saved["config"])}
     return encoder, predictor, info
 
 

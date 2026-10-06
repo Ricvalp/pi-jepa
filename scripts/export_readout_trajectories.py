@@ -15,7 +15,7 @@ import torch
 from pi_jepa.data import ENDPOINTS as TRAIN_ENDPOINTS, RESET_MODES, dataset_root, validate_clocks, validate_manifest
 from pi_jepa.checkpoint_interface import validate_checkpoint_interface
 from pi_jepa.evaluate_latents import ENDPOINTS, FORECAST_START, STEPS
-from pi_jepa.models import Encoder, PhysicalReadout, scale_readout, to_state
+from pi_jepa.models import Encoder, PhysicalReadout, scale_readout, to_state, model_kwargs
 from pi_jepa.physics import iota, rollout
 from pi_jepa.runs import file_digest, run_directory, write_provenance
 from pi_jepa.train import encode_batch
@@ -96,7 +96,8 @@ def export(args):
         raise ValueError("Checkpoint was trained on a different dataset")
     if saved.get("mode") not in ("joint", "readout") or saved.get("readout") is None or saved.get("initial_conditions") is None:
         raise ValueError("A checkpoint with trained physical readout and initial-condition table is required")
-    readout, encoder = PhysicalReadout().eval().requires_grad_(False), Encoder().eval().requires_grad_(False)
+    readout = PhysicalReadout().eval().requires_grad_(False)
+    encoder = Encoder(**model_kwargs(saved["config"])).eval().requires_grad_(False)
     table = load_initial_conditions_state(saved).eval().requires_grad_(False)
     protocol = saved["config"]["training"].get("initial_conditions", "learned")
     fixed_reset = protocol == "true_fixed"
@@ -174,6 +175,7 @@ def export(args):
         "dataset": config["dataset"], "data_schema_version": manifest["schema_version"],
         "physics": manifest["physics"], "camera": manifest["camera"], "cart_limit_m": manifest["cart_limit_m"],
         "checkpoint_step": saved["step"], "weights": "raw", "variant": variant,
+        "model_size": saved["interface"]["model_size"], "model_spec": saved["interface"]["model_spec"],
         "readout": "Checkpoint PhysicalReadout: Linear(32,64), GELU, Linear(64,5), angular pair normalization",
         "readout_coordinates": ["p", "v", "sin(q)", "cos(q)", "w"],
         "readout_units": ["m", "m/s", "dimensionless", "dimensionless", "rad/s"],

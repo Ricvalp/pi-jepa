@@ -12,11 +12,13 @@ import torch
 from torch import nn
 
 from pi_jepa.data import TrainDataset, action_blocks, causal_clips, dataset_root, validate_clocks, validate_manifest, ENDPOINTS, WINDOW_FRAMES
-from pi_jepa.checkpoint_interface import (CHECKPOINT_FORMAT_VERSION, ENCODER_ARCHITECTURE,
-    encoder_interface, geometry_interface, validate_checkpoint_interface)
+from pi_jepa.checkpoint_interface import (CHECKPOINT_FORMAT_VERSION,
+    model_interface, geometry_interface, validate_checkpoint_interface)
 from pi_jepa.initial_conditions import load_fixed_training_initial_conditions
 from pi_jepa.losses import SIGReg, jepa_loss, physics_loss, simulate_window
-from pi_jepa.models import Encoder, PhysicalReadout, Predictor, PassivePredictor, scale_readout, encode_temporal
+from pi_jepa.models import (Encoder, PhysicalReadout, Predictor, PassivePredictor,
+                           scale_readout, encode_temporal, model_kwargs, model_size)
+from pi_jepa.training_runtime import configure_runtime, neural_autocast
 from pi_jepa.experiment_logging import TrainingLogger, preserve_rng
 from pi_jepa.training_diagnostics import gradient_metrics, readout_metrics, representation_metrics
 from pi_jepa.training_monitoring import evaluate_diagnostics, fixed_reference, parameter_probes, update_metrics
@@ -34,9 +36,12 @@ def same_experiment(first, second):
     def science(config):
         config = copy.deepcopy(config)
         config.setdefault("training", {}).setdefault("initial_conditions", "learned")
+        config["training"].setdefault("precision", "float32")
+        config.setdefault("model", {}).setdefault("size", "small")
         for key in ("paths", "wandb", "diagnostics"):
             config.pop(key, None)
-        for key in ("save_every", "log_every", "val_every", "cpu_threads", "cache_batch_size"):
+        for key in ("save_every", "log_every", "val_every", "cpu_threads", "cache_batch_size",
+                    "cache_learning", "cache_fixed_targets", "cudnn_benchmark"):
             config.get("training", {}).pop(key, None)
         return config
     return science(first) == science(second)
@@ -87,13 +92,17 @@ def initial_weights(config, output, mode):
     if not path.exists():
         torch.manual_seed(config["seed"])
         passive = config.get("dataset", "controlled") == "passive"
-        state = {"encoder": Encoder().state_dict(),
-                 "predictor": (PassivePredictor() if passive else Predictor()).state_dict(),
-                 "readout": None if passive and mode == "jepa" else PhysicalReadout().state_dict(), "seed": config["seed"]}
+        kwargs = model_kwargs(config)
+        state = {"encoder": Encoder(**kwargs).state_dict(),
+                 "predictor": (PassivePredictor(**kwargs) if passive else Predictor(**kwargs)).state_dict(),
+                 "readout": None if passive and mode == "jepa" else PhysicalReadout().state_dict(),
+                 "seed": config["seed"], "model_size": model_size(config)}
         torch.save(state, path)
     state = torch.load(path, map_location="cpu", weights_only=True)
     if state["seed"] != config["seed"]:
         raise ValueError("Initial weights seed differs from the run configuration")
+    if state["model_size"] != model_size(config):
+        raise ValueError("Initial weights model size differs from the run configuration")
     return state
 
 
@@ -102,7 +111,7 @@ def load_learning_data(root, split):
     return TrainDataset(root, split)
 
 
-def batch_from(data, ids, device, generator=None, starts=None):
+def batch_from(data, ids, device, generator=None, starts=None, target_cache=None):
     """One uniformly sampled valid 65-frame window per independent episode.
 
     Reset IDs and raw endpoints are solver metadata, never neural inputs. The
@@ -136,6 +145,9 @@ def batch_from(data, ids, device, generator=None, starts=None):
     # IDs can be opaque strings. Use equality-only local grouping for diagnostics.
     apparatus = {value: index for index, value in enumerate(dict.fromkeys(item["apparatus_id"] for item in items))}
     result["apparatus_id"] = torch.tensor([apparatus[item["apparatus_id"]] for item in items])
+    if target_cache is not None:
+        # Lookup before copying metadata to CUDA avoids a device-to-host roundtrip.
+        result["simulated_states"] = target_cache.gather(result["trajectory_id"], result["raw_endpoints"])
     return {key: value.to(device) for key, value in result.items()}
 
 
@@ -215,7 +227,13 @@ def train(config, mode, device="auto", resume=False, *, run_dir=None, pretrained
     if pretrained is not None and mode != "readout":
         raise ValueError("--pretrained is only used by the frozen readout stage")
     config = copy.deepcopy(config)
+    model_size(config)  # Validate before creating a run directory.
     protocol = config.setdefault("training", {}).setdefault("initial_conditions", "learned")
+    config["training"].setdefault("precision", "float32")
+    if config["training"].get("cache_fixed_targets", False) and protocol != "true_fixed":
+        raise ValueError("Cached simulator targets require fixed true training resets")
+    if config["training"].get("cache_learning") or config["training"].get("cache_fixed_targets"):
+        config["paths"].setdefault("cache", "workspace/cache/training")
     if protocol not in ("learned", "true_fixed"):
         raise ValueError("training.initial_conditions must be learned or true_fixed")
     if protocol == "true_fixed" and mode != "joint":
@@ -234,7 +252,7 @@ def train(config, mode, device="auto", resume=False, *, run_dir=None, pretrained
     if protocol == "true_fixed":
         fixed_table, reset_metadata = load_fixed_training_initial_conditions(dataset_root(config))
     diagnostic = "-true-fixed-reset-diagnostic" if protocol == "true_fixed" else ""
-    prefix = f"{config.get('dataset', 'controlled')}-{mode}{diagnostic}-seed{config['seed']}"
+    prefix = f"{config.get('dataset', 'controlled')}-{mode}-{model_size(config)}{diagnostic}-seed{config['seed']}"
     with run_directory(config["paths"]["runs"], prefix, run_dir, resume) as output:
         if resume:
             saved = json.loads((output / "config.json").read_text())
@@ -273,6 +291,7 @@ def _train(config, mode, device, resume, output, pretrained, quiet, provenance, 
     cfg = config["training"]
     torch.set_num_threads(cfg["cpu_threads"])
     device = device_for(device)
+    precision = configure_runtime(config, device)
     if mode == "joint" and cfg["jepa_updates"] != cfg["physical_updates"]:
         raise ValueError("Joint updates must match both requested update budgets.")
     checkpoint_path = output / "latest.pt"
@@ -285,8 +304,9 @@ def _train(config, mode, device, resume, output, pretrained, quiet, provenance, 
     initial_digest = file_digest(output / "initial.pt")
     torch.manual_seed(config["seed"] + 1)
     passive = config.get("dataset", "controlled") == "passive"
-    encoder = Encoder().to(device)
-    predictor = (PassivePredictor() if passive else Predictor()).to(device)
+    kwargs = model_kwargs(config)
+    encoder = Encoder(**kwargs).to(device)
+    predictor = (PassivePredictor(**kwargs) if passive else Predictor(**kwargs)).to(device)
     readout = None if passive and mode == "jepa" else PhysicalReadout().to(device)
     for name, network in (("encoder", encoder), ("predictor", predictor), ("readout", readout)):
         if network is not None:
@@ -314,13 +334,32 @@ def _train(config, mode, device, resume, output, pretrained, quiet, provenance, 
         print(f"Opening learning-only {config.get('dataset', 'controlled')} episodes with a bounded cache ...", flush=True)
         if fixed_table is not None:
             print("Oracle diagnostic: physical targets use fixed true training resets; neural inputs remain images/actions.", flush=True)
-    learning = load_learning_data(dataset_root(config), "train")
-    validation_data = load_learning_data(dataset_root(config), "validation")
+    if cfg.get("cache_learning", False):
+        learning = TrainDataset(dataset_root(config), "train", cache_root=config["paths"]["cache"])
+        validation_data = TrainDataset(dataset_root(config), "validation", cache_root=config["paths"]["cache"])
+    else:
+        learning = load_learning_data(dataset_root(config), "train")
+        validation_data = load_learning_data(dataset_root(config), "validation")
     validation = fixed_reference(validation_data, seed=config["seed"] + 102, max_episodes=96)
     if len(learning) < cfg["batch_size"]:
         raise ValueError("SIGReg requires the configured number of distinct trajectories per batch")
     table = (None if mode == "jepa" else
              (fixed_table if fixed_table is not None else InitialConditions(learning.reset_modes)).to(device))
+    target_cache = None
+    if cfg.get("cache_fixed_targets", False):
+        from pi_jepa.training_cache import FixedTargetCache
+        target_cache = FixedTargetCache(dataset_root(config), config["paths"]["cache"],
+                                       table, reset_metadata)
+        table.target_cache = target_cache
+    (output / "runtime.json").write_text(json.dumps({
+        "device": str(device), "accelerator": torch.cuda.get_device_name(device) if device.type == "cuda" else None,
+        "training_precision": precision, "weights_precision": "float32", "readout_precision": "float32",
+        "cudnn_benchmark": bool(cfg.get("cudnn_benchmark", False)),
+        "learning_cache": bool(cfg.get("cache_learning", False)),
+        "fixed_target_cache": target_cache.metadata if target_cache is not None else None,
+        "parameters": {name: sum(p.numel() for p in network.parameters()) if network is not None else 0
+                       for name, network in (("encoder", encoder), ("predictor", predictor), ("readout", readout))},
+    }, indent=2) + "\n")
     learned_resets = table is not None and not getattr(table, "is_fixed", False)
     optimizer = torch.optim.AdamW(parameter_groups(encoder, predictor, readout, mode, cfg["weight_decay"]), lr=cfg["lr"])
     initial_optimizer = torch.optim.Adam(table.parameters(), lr=cfg["initial_lr"]) if learned_resets else None
@@ -386,8 +425,8 @@ def _train(config, mode, device, resume, output, pretrained, quiet, provenance, 
                  "torch_rng": torch.get_rng_state(), "cuda_rng": torch.cuda.get_rng_state_all() if device.type == "cuda" else [],
                  "initial_weights_sha256": initial_digest,
                  "data_manifest_sha256": provenance["data"]["sha256"],
-                 "interface": {"format_version": CHECKPOINT_FORMAT_VERSION, **geometry_interface(), **encoder_interface(), "dataset": config.get("dataset", "controlled"), "weights": "raw", "ema": False,
-                     "architecture": {"encoder": ENCODER_ARCHITECTURE, "predictor": "passive_mlp_32_128_128_32" if passive else "causal_transformer_32latent_10forces", "readout": None if readout is None else "mlp_32_to_5"},
+                 "interface": {"format_version": CHECKPOINT_FORMAT_VERSION, **geometry_interface(), **model_interface(config, mode), "dataset": config.get("dataset", "controlled"), "weights": "raw", "ema": False,
+                     "training_precision": precision, "weights_dtype": "float32",
                      "normalization": {"rgb": "2 * uint8 / 255 - 1", "force_divisor": None if passive else 5.0,
                          "theta_center": [1.0, 0.275], "theta_scale": [0.3, 0.225],
                          "physical_residual_divisors": [2.0, 2.0, 1.0, 1.0, 5.0], "fitted_statistics": None},
@@ -445,20 +484,26 @@ def _train(config, mode, device, resume, output, pretrained, quiet, provenance, 
         for step in range(start, total):
             monitor_step = monitoring and (step == start or (step + 1) % log_every == 0 or step + 1 == total)
             monitor_values = {}
+            update_started = time.perf_counter()
             ids = torch.randperm(len(learning), generator=sample_rng)[:cfg["batch_size"]]
-            batch = batch_from(learning, ids, device, generator=sample_rng)
+            batch = batch_from(learning, ids, device, generator=sample_rng, target_cache=target_cache)
+            data_seconds = time.perf_counter() - update_started
+            compute_started = time.perf_counter()
             lr = model_lr(step, total, cfg)
             for group in optimizer.param_groups: group["lr"] = lr
             optimizer.zero_grad(set_to_none=True)
             if initial_optimizer: initial_optimizer.zero_grad(set_to_none=True)
-            z = encode_batch(encoder, batch["frames"])
-            jepa = pred = reg = phys = z.new_zeros(())
-            if mode != "readout":
-                jepa, pred, reg = prediction_loss(z, predictor, batch, sigreg, sig_rng)
+            with neural_autocast(device, precision):
+                z = encode_batch(encoder, batch["frames"]).float()
+                jepa = pred = reg = phys = z.new_zeros(())
+                if mode != "readout":
+                    jepa, pred, reg = prediction_loss(z, predictor, batch, sigreg, sig_rng)
             decoded = readout(z) if readout is not None else None
             if mode != "jepa":
-                simulated = simulate_window(table(batch["trajectory_id"].long()), batch["theta"],
-                                            batch["prefix_forces"], batch["raw_endpoints"])
+                simulated = (batch["simulated_states"]
+                             if target_cache is not None else
+                             simulate_window(table(batch["trajectory_id"].long()), batch["theta"],
+                                             batch["prefix_forces"], batch["raw_endpoints"]))
                 phys = physics_loss(decoded, simulated)
             loss = jepa + cfg["lambda_phys"] * phys
             if not torch.isfinite(loss):
@@ -494,6 +539,16 @@ def _train(config, mode, device, resume, output, pretrained, quiet, provenance, 
                    "readout_variance": float(scale_readout(decoded.detach()).var(dim=0, unbiased=False).mean()) if decoded is not None else float("nan"),
                    "lr": lr, "seconds": elapsed_offset + time.monotonic() - wall_start}
             writer.writerow(row)
+            if monitor_step:
+                optimization_seconds = time.perf_counter() - compute_started
+                duration = data_seconds + optimization_seconds
+                monitor_values.update({"performance/data_seconds": data_seconds,
+                    "performance/optimization_seconds": optimization_seconds,
+                    "performance/update_seconds": duration,
+                    "performance/episodes_per_second": cfg["batch_size"] / max(duration, 1e-9)})
+                if device.type == "cuda":
+                    monitor_values["performance/cuda_peak_allocated_gib"] = torch.cuda.max_memory_allocated(device) / 2**30
+                    monitor_values["performance/cuda_reserved_gib"] = torch.cuda.memory_reserved(device) / 2**30
             payload = {f"train/{key}": value for key, value in monitor_values.items()}
             if monitor_step:
                 payload.update({f"train/loss/{key}": row[key] for key in ("total", "jepa", "prediction", "sigreg", "physics")})
@@ -541,6 +596,8 @@ def add_training_arguments(parser):
                         help="Use learned resets, or explicit fixed true training resets for a joint diagnostic")
     parser.add_argument("--data-root", default=os.environ.get("DATA_ROOT"))
     parser.add_argument("--runs-root", default=os.environ.get("RUNS_ROOT"))
+    parser.add_argument("--cache-root", default=os.environ.get("CACHE_ROOT"))
+    parser.add_argument("--batch-size", type=int)
     parser.add_argument("--seed", type=int)
     parser.add_argument("--cpu-threads", type=int)
     parser.add_argument("--quiet", action="store_true")
@@ -556,10 +613,14 @@ def config_from_arguments(args):
         config["dataset"] = args.dataset
     if getattr(args, "initial_conditions", None) is not None:
         config["training"]["initial_conditions"] = args.initial_conditions
-    for option, key in (("data_root", "data"), ("runs_root", "runs")):
-        value = getattr(args, option)
+    for option, key in (("data_root", "data"), ("runs_root", "runs"), ("cache_root", "cache")):
+        value = getattr(args, option, None)
         if value is not None:
             config["paths"][key] = value
+    if getattr(args, "batch_size", None) is not None:
+        if args.batch_size < 2:
+            raise ValueError("--batch-size must be at least two distinct episodes")
+        config["training"]["batch_size"] = args.batch_size
     if args.seed is not None:
         config["seed"] = args.seed
     if args.cpu_threads is not None:
